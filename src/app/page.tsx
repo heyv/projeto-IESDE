@@ -1,101 +1,299 @@
-import Image from "next/image";
+"use client";
+import { Box, Button, Card,  CardActions, CardContent,  IconButton,  InputAdornment,  TextField, Typography } from "@mui/material";
+import Grid from '@mui/material/Grid2';
+import Link from "next/link";
+import CustomizedSnackbars from "./components/alert/Alert";
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { redirect, useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react'
+
+interface FormData {
+  name: string;
+  cpf: string; 
+  birthdate: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+let  text = "";
+let errorType = "";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const router = useRouter();
+  const [formData, setFormData] = useState<FormData>({
+    name: '',
+    cpf: '', 
+    birthdate: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [errors, setErrors] = useState<{
+    nameError: string;
+    emailError: string;
+    passwordError: string;
+  }>({
+    nameError: '',
+    emailError: '',
+    passwordError: '',
+  });
+  const [alerta, setAlerta] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false); 
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+
+    if (isLoggedIn) {
+      redirect('/pages/profile')
+    }
+  }, [router]);
+
+
+  const formatCPF = (value: string) => {
+    let cpf = value.replace(/\D/g, '');
+
+    if (cpf.length > 11) {
+      cpf = cpf.slice(0, 11);
+    }
+
+    if (cpf.length > 9) {
+      cpf = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    } else if (cpf.length > 6) {
+      cpf = cpf.replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3');
+    } else if (cpf.length > 3) {
+      cpf = cpf.replace(/(\d{3})(\d{3})/, '$1.$2');
+    }
+
+    return cpf;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'cpf') {
+      setFormData({
+        ...formData,
+        cpf: formatCPF(value),  
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
+    }
+  };
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password: string) => {
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    return passwordRegex.test(password);
+  };
+
+  const handleSubmit = () => {
+    const nameParts = formData.name.trim().split(' ');
+    if (nameParts.length < 2) {
+      text = 'O nome deve conter pelo menos nome e sobrenome.';
+      errorType = 'warning'
+      alertMsg()
+      return;
+    }
+
+    if (formData.cpf.length !== 14) {
+      text = 'CPF inválido!';
+      errorType = 'warning'
+      alertMsg()
+      return;
+    }
+
+    if (!formData.birthdate) {
+      text = 'Selecione uma data de nascimento';
+      errorType = 'warning'
+      alertMsg()
+      return;
+    }
+
+    if (!validateEmail(formData.email)) {
+      text = 'Por favor, insira um endereço de email válido.';
+      errorType = 'warning'
+      alertMsg()
+      return;
+    }
+
+    if (!validatePassword(formData.password)) {
+      text = 'A senha deve ter pelo menos 8 caracteres, incluindo letras maiúsculas, minúsculas, números e caracteres especiais.';
+      errorType = 'warning'
+      alertMsg()
+      return;
+    } 
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrors({
+        ...errors,
+        passwordError: 'As senhas não coincidem.',
+      });
+      return;
+    }
+    
+    const userData = {
+      name: formData.name,
+      birthdate: formData.birthdate,
+      email: formData.email,
+      cpf: formData.cpf,
+      password: formData.password,
+    };
+
+    localStorage.setItem('userData', JSON.stringify(userData));
+    localStorage.setItem('logado', 'true');
+
+    text = 'Usuário cadastrado com sucesso!';
+    errorType = 'success'
+    alertMsg()
+    router.push('/pages/login')
+    return;
+  };
+
+  const alertMsg = () => {
+    setAlerta(true);
+    setTimeout(() => setAlerta(false), 3000);
+  };
+
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword(!showPassword); 
+  };
+  
+  const handleToggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword); 
+  };
+
+  return (
+    <Box
+    display="flex"
+    justifyContent="center"
+    alignItems="center"
+    minHeight={window.innerWidth > 600 ? "100vh":window.innerHeight} 
+  >
+    <Card sx={{ 
+      maxWidth:400
+       }}>
+      <CardContent>
+      <Typography variant="h5" component="div">
+          Painel de cadastro projeto IESDE
+        </Typography>
+        <Typography sx={{ color: 'text.secondary', mb: 1.5, marginTop:1 }}>Preencha os campos abaixo para criar sua conta.</Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 12 }}>
+            <TextField
+              fullWidth
+              label="Nome e sobrenome"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          </Grid>
+          <Grid size={{ xs: 12, md: 12 }}>
+          <TextField
+              fullWidth
+              label="CPF"
+              name="cpf"
+              value={formData.cpf}
+              onChange={handleChange}
+              required
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 12 }}>
+            <TextField
+              fullWidth
+              label="Data de Nascimento"
+              name="birthdate"
+              type="date"
+              value={formData.birthdate}
+              onChange={handleChange}
+              InputLabelProps={{ shrink: true }}
+              required
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 12 }}>
+            <TextField
+              fullWidth
+              label="Email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 12 }}>
+            <TextField
+              fullWidth
+              label="Senha"
+              name="password"
+              type={showPassword ? 'text' : 'password'} 
+              value={formData.password}
+              onChange={handleChange}
+              required
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={handleTogglePasswordVisibility}
+                      edge="end"
+                    >
+                      {showPassword ? <Visibility />  :  <VisibilityOff />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 12 }}>
+            <TextField
+              fullWidth
+              label="Confirmar Senha"
+              name="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              error={!!errors.passwordError}
+              helperText={errors.passwordError ? "As senhas não coincidem" : ""}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={handleToggleConfirmPasswordVisibility}
+                      edge="end"
+                    >
+                      {showConfirmPassword ? <Visibility /> :  <VisibilityOff />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+        </Grid>
+      </CardContent>
+      <CardActions style={{justifyContent:'space-between'}}>
+        <Button onClick={handleSubmit} variant="contained" color="primary" >
+          Crie uma conta
+        </Button>
+        <Button component={Link}
+          href='/pages/login' size="small" variant="text" color="primary">Já tenho uma conta</Button>
+      </CardActions>
+    </Card>
+    {alerta && (
+      <CustomizedSnackbars
+        texto={text}
+        errorType={errorType}
+      ></CustomizedSnackbars>
+    )}
+  </Box>
   );
 }
